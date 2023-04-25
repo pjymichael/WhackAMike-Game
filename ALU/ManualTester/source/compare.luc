@@ -1,0 +1,26 @@
+module compare (
+    input z,
+    input v, 
+    input n,
+    input alufn_signal[6],
+    output out[16],
+    input clk,  // clock
+    input rst  // reset
+    //output nvz[3]
+  ) {
+
+  random randomUnit(.clk(clk), .rst(rst));
+  
+  always {
+    out = 16b0;
+    //nvz[2:0] = 0;
+    case(alufn_signal){
+      default: out[0] = 0;
+      b110011: out[0] = z; //alufn[2:1] = 0,1, LSB=z, a==b
+      b110101: out[0] = n^v; //alufn[2:1] = 1,0, LSB=nXORv, a<b
+      b110111: out[0] = z|(n^v); //alufn[2:1] = 1,1, LSB=zOR(nXORv), a<=b
+      b111111: 
+        out[15:0] = randomUnit.out; //get random led sequence from random unit
+    }//case end
+  }
+}

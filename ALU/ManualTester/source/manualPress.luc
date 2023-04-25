@@ -1,0 +1,163 @@
+module manualPress (
+    input clk,  // clock
+    input rst,  // reset
+    input buttons[5], //define 5 buttons, button 1-A, button 2-B, button 3-ALUFN, button 4-computation, button 5-reset random led sequence
+    input io_dip [3][8],
+    output out_a[16],
+    output out_b[16],
+    output out_alufn[6],
+    output out_compute[16],
+    output out_nvz[3],
+    //output out_led[5],
+    output io_led[3][8]
+  ) {
+  
+  alu alu_unit(.rst(rst), .clk(clk));
+  dff areg[16](#INIT(0), .clk(clk), .rst(rst));//register to store 16bits of input a
+  dff breg[16](#INIT(0), .clk(clk), .rst(rst));//register to store 16bits of input b
+  dff alufn_reg[6](#INIT(0), .clk(clk), .rst(rst));//register to store 16bits of input alufn
+  dff compute[16](#INIT(0), .clk(clk), .rst(rst));//register to store 16bits of input compute
+  
+  dff nvz[3](#INIT(0), .clk(clk), .rst(rst));
+  
+  sig a[16]; //temp signal to connect to output 
+  sig b[16];
+  sig alufn_sigs[6];
+  
+  //declare fsm
+  fsm checkpress(.clk(clk), .rst(rst)) = {START, A, B, ALUFN, COMPUTE};
+  
+  always {
+    io_led = 3x{{8h00}};
+    alu_unit.a = 0;
+    alu_unit.b = 0;
+    alu_unit.alufn_sig = 0;  
+    
+    case(checkpress.q){
+    
+      checkpress.START:
+        if(buttons[3]|buttons[2]|buttons[1]|buttons[0]){//if any button is pressed
+          if(buttons[3]){
+            checkpress.d = checkpress.COMPUTE;//switch to compute state
+          }//end if button 4 is pressed
+          else if(buttons[2]){
+            checkpress.d = checkpress.ALUFN;//switch to ALUFN input state
+          }//end if button 3 is pressed
+          else if(buttons[1]){
+            checkpress.d = checkpress.B;//switch to B input state
+          }//end if button 2 is pressed
+          else if(buttons[0]){
+            checkpress.d = checkpress.A;//switch to A input state
+          }//end if button 1 is pressed
+        }//end if any button pressed
+        else{checkpress.d = checkpress.START;}//if no press, keep looping in start state
+        //end case START    
+            
+      checkpress.A://when button 1 is pressed, input A 16bits using dip switches
+        //io_led[2][0] = 1; //turn on led to check if button is pressed (debugging purpose only)
+        a[7:0] = io_dip[0]; //stores dip switch 0 input into temp signal a
+        a[15:8] = io_dip[1]; //stores dip switch 1 input into temp signal a
+        areg.d = a; //store into register a input
+        
+        if(buttons[3]|buttons[2]|buttons[1]|buttons[0]){//if any button is pressed
+          if(buttons[3]){
+            checkpress.d = checkpress.COMPUTE;//switch to compute state
+          }//end if button 4 is pressed
+          else if(buttons[2]){
+            checkpress.d = checkpress.ALUFN;//switch to ALUFN input state
+          }//end if button 3 is pressed
+          else if(buttons[1]){
+            checkpress.d = checkpress.B;//switch to B input state
+          }//end if button 2 is pressed
+          else if(buttons[0]){
+            checkpress.d = checkpress.A;//switch to A input state
+          }//end if button 1 is pressed
+        }//end if any button pressed
+        else{checkpress.d = checkpress.A;}//if no press, keep looping in current state
+        //end case A
+        
+      checkpress.B:
+        //io_led[2][1] = 1; //turn on led to check if button is pressed (debugging purpose only)
+        b[7:0] = io_dip[0]; //stores dip switch 0 input into temp signal b
+        b[15:8] = io_dip[1]; //stores dip switch 1 input into temp signal b
+        breg.d = b; //store into register b input
+        
+        if(buttons[3]|buttons[2]|buttons[1]|buttons[0]){//if any button is pressed
+          if(buttons[3]){
+            checkpress.d = checkpress.COMPUTE;//switch to compute state
+          }//end if button 4 is pressed
+          else if(buttons[2]){
+            checkpress.d = checkpress.ALUFN;//switch to ALUFN input state
+          }//end if button 3 is pressed
+          else if(buttons[1]){
+            checkpress.d = checkpress.B;//switch to B input state
+          }//end if button 2 is pressed
+          else if(buttons[0]){
+            checkpress.d = checkpress.A;//switch to A input state
+          }//end if button 1 is pressed
+        }//end if any button pressed
+        else{checkpress.d = checkpress.B;}//if no press, keep looping in current state
+        //end case B
+        
+      checkpress.ALUFN:
+        //io_led[2][2] = 1; //turn on led to check if button is pressed (debugging purpose only)
+        alufn_sigs[5:0] = io_dip[2]; //stores dip switch 1 input into temp signal alufn
+        alufn_reg.d = alufn_sigs; //store into register alufn input
+        
+        if(buttons[3]|buttons[2]|buttons[1]|buttons[0]){//if any button is pressed
+          if(buttons[3]){
+            checkpress.d = checkpress.COMPUTE;//switch to compute state
+          }//end if button 4 is pressed
+          else if(buttons[2]){
+            checkpress.d = checkpress.ALUFN;//switch to ALUFN input state
+          }//end if button 3 is pressed
+          else if(buttons[1]){
+            checkpress.d = checkpress.B;//switch to B input state
+          }//end if button 2 is pressed
+          else if(buttons[0]){
+            checkpress.d = checkpress.A;//switch to A input state
+          }//end if button 1 is pressed
+        }//end if any button pressed
+        else{checkpress.d = checkpress.ALUFN;}//if no press, keep looping in current state
+        //end case ALUFN
+        
+      checkpress.COMPUTE:
+        //io_led[2][3] = 1;//debugging
+        //assign the outputs of each dff to each input in alu unit  
+        alu_unit.a = areg.q;
+        alu_unit.b = breg.q;
+        alu_unit.alufn_sig = alufn_reg.q; 
+        compute.d = alu_unit.out;//retrieve the output after computation
+        //get zvn values
+        nvz.d = alu_unit.nvz;
+        
+        if(buttons[4]|buttons[3]|buttons[2]|buttons[1]|buttons[0]){//if any button is pressed
+          if(buttons[3]){
+            checkpress.d = checkpress.COMPUTE;//switch to compute state
+          }//end if button 4 is pressed
+          else if(buttons[2]){
+            checkpress.d = checkpress.ALUFN;//switch to ALUFN input state
+          }//end if button 3 is pressed
+          else if(buttons[1]){
+            checkpress.d = checkpress.B;//switch to B input state
+          }//end if button 2 is pressed
+          else if(buttons[0]){
+            checkpress.d = checkpress.A;//switch to A input state
+          }//end if button 1 is pressed
+          else if(buttons[4]){
+            compute.d=0;//turn the leds off
+            checkpress.d = checkpress.START;//switch to START input state, since we want to stop the random led output sequence
+          }//end if button 5 is pressed
+        }//end if any button pressed
+        else{checkpress.d = checkpress.COMPUTE;}//if no press, keep looping in current state
+        //end case COMPUTE           
+    }//end case block
+    
+    //store the outputs so that they can be used by other modules
+    out_a = areg.q;
+    out_b = breg.q;
+    out_alufn = alufn_reg.q;
+    out_compute = compute.q;
+    out_nvz = nvz.q;
+  }//end always
+}

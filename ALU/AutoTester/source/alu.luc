@@ -1,0 +1,70 @@
+module alu (
+    input a[16],
+    input b[16],
+    input alufn_sig[6], //alufn controls the operations of ALU circuitry
+    output out[16],
+    output nvz[3]
+    //output io_led[3][8]
+  ) {
+  //declare and initialise manual manualPress
+  //manualPress press(.clk(clk), .rst(rst));
+  //declare and initialise all other modules
+  adder adderUnit;
+  boolean booleanUnit;
+  shifter shifterUnit;
+  compare compareUnit;
+  //extra functionality related to our game
+  
+  //signals
+  sig z;//is true when all OUT outputs are 0
+  sig v;//is true when addition operation overflows (not impt when signed?)
+  sig n;//is true when MSB of OUT is negative (equals to 1)
+  //sig out[16];
+
+  always {
+    
+    //assign input signals for adder
+    adderUnit.a = a;
+    adderUnit.b = b;
+    adderUnit.alufn_signal = alufn_sig;
+    z = adderUnit.z;
+    v = adderUnit.v;
+    n = adderUnit.n;
+    nvz[0] = z; //store z,v,n signals so that it can be used as input to the compare unit (since compare can only run after adder runs)
+    nvz[1] = v;
+    nvz[2] = n;
+    
+    //assign input signals for compare
+    compareUnit.z = z;
+    compareUnit.v = v;
+    compareUnit.n = n;
+    compareUnit.alufn_signal = alufn_sig;
+    
+    //assign input signals for boolean
+    booleanUnit.alufn_signal = alufn_sig;
+    booleanUnit.a = a;
+    booleanUnit.b = b;
+    
+    //assign input signals for shifter
+    shifterUnit.a = a;
+    shifterUnit.b = b[4:0];
+    shifterUnit.alufn_signal = alufn_sig;
+    
+    //multiplier unit
+    /*if(alufn_sig==b000010){
+      out = a*b;
+    }//end if*/
+    
+    //alufn[5:4] will help to branch out to the different modules
+    case(alufn_sig[5:4]){
+      b00: out = adderUnit.out;
+      b01: out = booleanUnit.out;
+      b10: out = shifterUnit.out;
+      b11: out = compareUnit.out;
+      default: out = 16b0;
+    }//end case 
+    
+    //io_led[0] = out[7:0];
+    //io_led[1] = out[15:8];
+  }
+}

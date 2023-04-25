@@ -1,0 +1,17 @@
+module boolean (
+    input alufn_signal[6],
+    input a[16],
+    input b[16],
+    output out[16]
+  ) {
+
+  always {
+    case(alufn_signal[3:0]){
+      b1000: out = a&b;//bitwise and
+      b1110: out = a|b;//bitwise or
+      b0110: out = a^b;//bitwise xor
+      b1010: out = a;//output the value of input a
+      default: out = 16b0;
+    }//case end
+  }
+}

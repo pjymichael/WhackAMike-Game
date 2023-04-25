@@ -1,0 +1,75 @@
+//This project implements 1 players. Testing with io buttons, 7 segments and LEDs on fpga first (WORKING, adding extra state to reduce 3 points)
+module au_top (
+    input clk,              // 100MHz clock
+    input rst_n,            // reset button (active low)
+    output led [8],         // 8 user controllable LEDs
+    input usb_rx,           // USB->Serial input
+    output usb_tx,          // USB->Serial output
+    input p1[5], //player 1 buttons
+    input p2[5], //player 2 buttons
+    output normike[5], //green leds
+    output dynamike[5], //red leds
+    output io_segp1 [8],      // 7-segment LEDs 
+    output io_selp1 [2],      // Digit select 
+    output io_segp2 [8],      // 7-segment LEDs 
+    output io_selp2 [2],      // Digit select 
+    output io_segwin [8],      // 7-segment LEDs
+    output io_selwin [2]    // Digit select     
+  ) {
+  
+  sig rst;                  // reset signal
+  
+  .clk(clk) {
+    // The reset conditioner is used to synchronize the reset signal to the FPGA
+    // clock. This ensures the entire FPGA comes out of reset at the same time.
+    reset_conditioner reset_cond;
+    .rst(rst){
+      beta betaUnit;
+    }
+    edge_detector edge_dt_btn_p1[5](#RISE(1), #FALL(0)); 
+    edge_detector edge_dt_btn_p2[5](#RISE(1), #FALL(0));  
+    button_conditioner btn_cond_p1[5];
+    button_conditioner btn_cond_p2[5];
+  }
+  
+  always {
+    reset_cond.in = rst_n;//~rst_n // input raw inverted reset signal
+    rst = reset_cond.out;   // conditioned reset
+    
+    usb_tx = usb_rx;        // loop serial port
+    
+    led = 8h00;             // turn LEDs off
+    
+    normike = 5h0; //turn green led outputs off
+    dynamike = 5h0; //turn red led outputs off
+
+    io_segp1 = 8hff;          // turn segments off
+    io_selp1 = 4hf;           // select no digits
+    io_segp2 = 8hff;          // turn segments off
+    io_selp2 = 4hf;           // select no digits
+    io_segwin = 8hff;          // turn segments off
+    io_selwin = 4hf;           // select no digits
+    
+    //start
+    btn_cond_p1.in = p1[4:0]; //to reduce the bouncing effects of your button 
+    btn_cond_p2.in = p2[4:0];
+    
+    edge_dt_btn_p1.in = btn_cond_p1.out; //get the edge of button press
+    edge_dt_btn_p2.in = btn_cond_p2.out;
+    
+    betaUnit.p1_button = edge_dt_btn_p1.out;
+    betaUnit.p2_button = edge_dt_btn_p2.out;
+    
+    //show output leds from regfile
+    normike = betaUnit.out_mike[4:0];
+    dynamike = betaUnit.out_dynamike[4:0];
+    
+    //show 7 segment outputs
+    io_segp1 = betaUnit.segments_p1;// connect segments to the driver
+    io_selp1 = betaUnit.selectors_p1; // connect digit select to the driver
+    io_segp2 = betaUnit.segments_p2;
+    io_selp2 = betaUnit.selectors_p2;
+    io_segwin = betaUnit.segments_win;
+    io_selwin = betaUnit.selectors_win; 
+  }
+}

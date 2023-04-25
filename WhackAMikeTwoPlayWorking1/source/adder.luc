@@ -1,0 +1,28 @@
+module adder (
+    input a[16],
+    input b[16],
+    input alufn_signal[6],
+    output out[16],
+    output z[1], //is true when all OUT outputs are 0 (NOR(S)==1? Z=1: Z=0)
+    output v[1], //is true when addition operation overflows (not impt when signed?)
+    output n[1] //is true when MSB of OUT is negative (equals to 1)
+  ) {
+  sig s[16]; //temp variable since OUT cannot be read
+  always {
+    s = 16b0; //initialise signal s to be 16bits of 0
+    
+    case (alufn_signal[1:0]){
+      b00:s=a+b;//addition
+      b01:s=a-b;//subtraction
+      b10:s=a*b;//multiplication
+      b11:s=a-b;//subtraction for compare
+      default:s=16b0; //default case if the first 4 cases dont occur
+    }//end case
+    
+    z = ~|s; //reduction operator ~|(NOR)
+    n = s[15];
+    v = (a[15] & (b[15] ^ alufn_signal[0]) & !s[15]) | (!a[15] & !(b[15] ^ alufn_signal[0]) & s[15]);
+    //overflow: never occurs when a, b have different signs, overflow is detected when sign of the result differs from sign of a, b    
+    out = s;
+  }
+}

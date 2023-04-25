@@ -1,0 +1,84 @@
+module alu_tester (
+    input clk,  // clock
+    input reset,
+    output compute_led[16],
+    output correct_led[1], //is true if computed value MATCHES the hardcoded answer
+    output error_led[1], //is true if the computed value DOES NOT match the hardcoded answer
+    output nvz_led[3],//output n,v,z
+    input dps[3][8]//dipswitch
+  ) {
+  
+  counter slowClock(#SIZE(1), #DIV(28), .clk(clk), .rst(reset)); //define counter to slowdown the clock
+  edge_detector slowClockEdge(#RISE(1), #FALL(0), .clk(clk));
+  
+  //helps to increment the address by 1 so we can cycle through all operations
+  dff addr[$clog2(23)](#INIT(0), .clk(slowClock.value), .rst(reset)); //clog2 - gets the number of bits needed for the number of states
+  
+  alu alu; //declare the alu, to auto feed the fixed values of a,b,alufn
+  hardcodeROM rom(.clk(clk), .rst(reset)); //declare ROM so we can compare the computed alu values with the hardcoded answer 
+
+  fsm testAluFsm(.clk(slowClock.value))={RUN}; //state machine to auto run through all the states
+  
+  sig compute_out[16]; //temporary signal to store the computed value from alu output
+  
+  always {
+    
+    slowClockEdge.in = slowClock.value;
+    //assign 0 to all values first
+    compute_led = 16h0000;
+    alu.alufn_sig = 6b0;
+    alu.a = 16h0000;
+    alu.b = 16h0000;
+    rom.address = 0;
+    correct_led = 0;
+    error_led = 0;
+    nvz_led = 0;
+    //fsm starts
+    case(testAluFsm.q){
+      testAluFsm.RUN: //RUN is the auto state that allows to cycle through the different operations
+              rom.address = addr.q; //starting address 0, to access the ADD operation first
+              alu.alufn_sig = rom.value[53:48]; //assign the hardcoded ROM alufn signal to alu alufn signal for computation
+              alu.a = rom.value[47:32]; //assign the hardcoded ROM a signal to alu a signal for computation
+              alu.b = rom.value[31:16]; //assign the hardcoded ROM b signal to alu alufn signal for computatio 
+              compute_out = alu.out; //store the output of computation from alu module into compute_out
+        
+               if(compute_out==rom.value[15:0]){ //if the alu value matches with the hardcoded answer
+                  error_led = 0;
+                  compute_led = alu.out;// so that other modules can access the output
+                  correct_led = b1;
+                  nvz_led = alu.nvz;
+                  addr.d = addr.q+1; //increment address by 1 to access next value
+                  testAluFsm.d = testAluFsm.RUN;//loop back to run state again
+                }//end if match
+        
+               if(dps[0][0]==1){ //simulating error case, if one of the dip switch is toggled, XOR the output and compare it with the ROM
+                 compute_out = alu.out^16hffff; //XOR the output 
+                 //if not the same as the hardcoded answer,  
+                 if(compute_out!=rom.value[15:0]) {
+                    error_led = b1; //turn on error led,
+                    correct_led = b0; //turn off correct led 
+                    compute_led = compute_out; //output the wrong answer on the leds
+                    addr.d = addr.q+1; //increment address by 1 to access next value
+                    testAluFsm.d = testAluFsm.RUN;//loop back to run state again
+                  }
+                }//end error case
+        
+               if(compute_out!=rom.value[15:0]) { //if not the same as answer
+                 error_led = b1; //turn on error led
+                 addr.d = addr.q+1; //increment address by 1 to access next value
+                 testAluFsm.d = testAluFsm.RUN;//loop back to run state again
+               }//end if not match
+        
+               if (addr.q>22) //this condition is to restart the automatic tester process once it reaches the last operation (CMPLE)
+                { 
+                  addr.d = 0; 
+                }//end if             
+              
+      default:
+              alu.alufn_sig = b000000;
+              alu.a = 16h0000;
+              alu.b = 16h0000;
+              testAluFsm.d = testAluFsm.q;                        
+    }
+  }
+}

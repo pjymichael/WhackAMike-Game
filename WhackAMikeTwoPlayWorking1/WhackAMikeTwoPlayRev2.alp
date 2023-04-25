@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="WhackAMikeTwoPlayRev2" board="Alchitry Au" language="Lucid" version="3">
+  <files>
+    <src>seven_seg.luc</src>
+    <component>pipeline.luc</component>
+    <src>boolean.luc</src>
+    <component>counter.luc</component>
+    <src>alu.luc</src>
+    <src>multi_seven_seg_win.luc</src>
+    <src>regfile.luc</src>
+    <component>decoder.luc</component>
+    <src>compare.luc</src>
+    <src>random_dynamike.luc</src>
+    <src>beta.luc</src>
+    <src>shifter.luc</src>
+    <src>adder.luc</src>
+    <src>multi_seven_seg_p2.luc</src>
+    <src top="true">au_top.luc</src>
+    <component>pn_gen.luc</component>
+    <src>seven_seg_win.luc</src>
+    <component>reset_conditioner.luc</component>
+    <component>edge_detector.luc</component>
+    <src>random.luc</src>
+    <component>button_conditioner.luc</component>
+    <src>multi_seven_seg_p1.luc</src>
+    <src>control.luc</src>
+    <constraint>properties.xdc</constraint>
+    <constraint>external.acf</constraint>
+  </files>
+</project>

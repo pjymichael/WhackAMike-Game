@@ -1,0 +1,12 @@
+#-----------------------------------------------------------
+# Vivado v2020.2 (64-bit)
+# SW Build 3064766 on Wed Nov 18 09:12:45 MST 2020
+# IP Build 3064653 on Wed Nov 18 14:17:31 MST 2020
+# Start of session at: Wed Mar 15 00:22:13 2023
+# Process ID: 36824
+# Current directory: C:/Users/Advaitaa/Desktop/TERM4/Comp Struct/1D/ALUUnit/work/vivado/ALUUnit/ALUUnit.runs/impl_1
+# Command line: vivado.exe -log au_top_0.vdi -applog -product Vivado -messageDb vivado.pb -mode batch -source au_top_0.tcl -notrace
+# Log file: C:/Users/Advaitaa/Desktop/TERM4/Comp Struct/1D/ALUUnit/work/vivado/ALUUnit/ALUUnit.runs/impl_1/au_top_0.vdi
+# Journal file: C:/Users/Advaitaa/Desktop/TERM4/Comp Struct/1D/ALUUnit/work/vivado/ALUUnit/ALUUnit.runs/impl_1\vivado.jou
+#-----------------------------------------------------------
+source au_top_0.tcl -notrace

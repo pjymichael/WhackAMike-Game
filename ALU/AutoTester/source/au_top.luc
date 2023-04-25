@@ -1,0 +1,43 @@
+module au_top (
+    input clk,              // 100MHz clock
+    input rst_n,            // reset button (active low)
+    output led [8],         // 8 user controllable LEDs
+    input usb_rx,           // USB->Serial input
+    output usb_tx,          // USB->Serial output
+    output io_led [3][8],   // LEDs on IO Shield
+    output io_seg [8],      // 7-segment LEDs on IO Shield
+    output io_sel [4],      // Digit select on IO Shield
+    input io_button [5],    // 5 buttons on IO Shield
+    input io_dip [3][8]     // DIP switches on IO Shield
+  ) {
+  
+  sig rst;                  // reset signal
+  //alu aluunit;
+  alu_tester alutest(.clk(clk), .reset(rst));//supplying the reset signal in alutester with reset signal from au_top 
+  
+  .clk(clk) {
+    // The reset conditioner is used to synchronize the reset signal to the FPGA
+    // clock. This ensures the entire FPGA comes out of reset at the same time.
+    reset_conditioner reset_cond;
+  }
+  
+  always {
+    reset_cond.in = ~rst_n; // input raw inverted reset signal
+    rst = reset_cond.out;   // conditioned reset
+    usb_tx = usb_rx;        // loop serial port
+    
+    led = 8h00;             // turn LEDs off
+    
+    io_led = 3x{{8h00}};    // turn LEDs off
+    io_seg = 8hff;          // turn segments off
+    io_sel = 4hf;           // select no digits
+
+    alutest.dps = io_dip;//assign the input dip switches to the dps in alutest, to detect if dip switch is toggled
+       
+    io_led[2][6] = alutest.correct_led; //led array 2, led 7 turns on if output matches the answer
+    io_led[2][7] = alutest.error_led; //led array 2, led 8 turns on if output does not match answer
+    io_led[0] = alutest.compute_led[7:0]; //first 8 bits of output assigned to led array 0
+    io_led[1] = alutest.compute_led[15:8]; //last 8 bits of output assigned to led array 1
+    io_led[2][2:0] = alutest.nvz_led; //output nvz on led array 2, on 0,1,2  
+  }
+}

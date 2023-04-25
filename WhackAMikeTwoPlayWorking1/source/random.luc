@@ -1,0 +1,39 @@
+module random (
+    input clk,  // clock
+    input rst,  // reset
+    output out[5]
+  ) {
+
+  //extra functionality
+  .clk(clk){
+   edge_detector edge_detector_rng;
+   edge_detector edge_detector_seed;
+   dff seed[5];//don't reset the seed because we don't want the same random number each time we press reset
+    
+  .rst(rst){
+     counter slowclock_forvariablecounter(#SIZE(1),#DIV(21)); //helps to continuosly change the seed value to produce a different random 
+                                                              //output evertime
+     counter slowerclock(#SIZE(1), #DIV(26)); //slow clock to be able to see the leds turn on randomly
+     pn_gen rand;
+    }
+ }
+
+  always {
+    rand.seed = seed.q;
+    
+    edge_detector_rng.in = slowerclock.value;
+    rand.next = edge_detector_rng.out;
+    
+    edge_detector_seed.in = slowclock_forvariablecounter.value;
+    
+    //when seed edge detector is high, we increment the seed value
+    if(edge_detector_seed.out){
+      seed.d = seed.q + 1;
+    }
+    
+    if(rand.num == b00000){
+      out = rand.num | b11111;
+    }//end if 
+    else{ out = rand.num[4:0]; }//read from pn gen random num 
+  }
+}

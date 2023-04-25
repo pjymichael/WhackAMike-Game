@@ -1,0 +1,129 @@
+module regfile (
+    input clk,  // clock
+    input rst,  // reset
+    input write_addrc[4], //write address, rc port
+    input read_addra[4], //read address, ra port
+    input read_addrb[4], //read address, rb port
+    input we, //write enable signal
+    input data[16], //5 bits of write data, maybe think of changing the number of bits? since we only need 5
+    output out_reada[16], //output ra port
+    output out_readb[16],  //output rb port
+    output out_mikeled[16],
+    output out_exmikeled[16],
+    output out_p1score[16],
+    output out_p2score[16],
+    output mikeout[16],
+    output exmikeout[16],
+    output p1press_seq[16],
+    output p2press_seq[16],
+    output winp1[1],
+    output winp2[1],
+    output timer_debug[16]
+  ) {
+  
+  .clk(clk){
+    .rst(rst){
+      //define registers to store our data in
+      dff p1_score[16]; //stores p1 score
+      dff p2_score[16]; //stores p2 p1_score
+      dff p1_win[16]; //stores 1 if p1 wins, 0 otherwise
+      dff p2_win[16]; //stores 1 if p2 wins, 0 otherwise
+      dff pos_mike[16]; //random position of normal mike
+      dff pos_exmike[16]; //random position of exploding mike
+      dff p1_buttonpress[16]; //sequence of button presses for p1
+      dff p2_buttonpress[16]; //sequence of button presses for p2
+      dff out_mike[16]; //output of the normal mike
+      dff out_exmike[16]; //output of the exploding mike
+      dff round_num[16]; //round counter
+      dff timer[16]; //timer counter
+      dff check_round[16]; // checks if round reach 5 (to change mode)
+      dff check_timer[16]; //checks if timer is done
+      //define temporary registers
+      dff temp_one[16];
+      dff temp_two[16];
+    }
+  }
+  always {  
+    //set the output read ports as 0 first
+    out_reada = h0000;
+    out_readb = h0000;
+    
+    //if write enable==1
+    if(we){
+      case(write_addrc){
+        b0000: p1_score.d = data; //data comes from wdselmux module
+        b0001: p2_score.d = data;
+        b0010: p1_win.d = data;
+        b0011: p2_win.d = data;
+        b0100: pos_mike.d = data;
+        b0101: pos_exmike.d = data;
+        b0110: p1_buttonpress.d = data;
+        b0111: p2_buttonpress.d = data;
+        b1000: out_mike.d = data;
+        b1001: out_exmike.d = data;
+        b1010: round_num.d = data;
+        b1011: timer.d = data;
+        b1100: check_round.d = data;
+        b1101: check_timer.d = data;
+        b1110: temp_one.d = data;
+        b1111: temp_two.d = data;
+      }//end case write
+    }//end if we==1
+    
+    //read ra address port
+    case(read_addra){
+      b0000: out_reada = p1_score.q; //this output will be connected to aselmux at b000
+      b0001: out_reada = p2_score.q;
+      b0010: out_reada = p1_win.q; 
+      b0011: out_reada = p2_win.q; 
+      b0100: out_reada = pos_mike.q; 
+      b0101: out_reada = pos_exmike.q; 
+      b0110: out_reada = p1_buttonpress.q; 
+      b0111: out_reada = p2_buttonpress.q; 
+      b1000: out_reada = out_mike.q;  
+      b1001: out_reada = out_exmike.q;  
+      b1010: out_reada = round_num.q; 
+      b1011: out_reada = timer.q; 
+      b1100: out_reada = check_round.q; 
+      b1101: out_reada = check_timer.q; 
+      b1110: out_reada = temp_one.q;
+      b1111: out_reada = temp_two.q;
+      default: out_reada = 0;
+    }//end case read ra
+    
+    //read rb address port
+    case(read_addrb){
+      b0000: out_readb = p1_score.q; //this output will be connected to bselmux at b000
+      b0001: out_readb = p2_score.q;
+      b0010: out_readb = p1_win.q; 
+      b0011: out_readb = p2_win.q; 
+      b0100: out_readb = pos_mike.q; 
+      b0101: out_readb = pos_exmike.q; 
+      b0110: out_readb = p1_buttonpress.q; 
+      b0111: out_readb = p2_buttonpress.q; 
+      b1000: out_readb = out_mike.q;  
+      b1001: out_readb = out_exmike.q;  
+      b1010: out_readb = round_num.q; 
+      b1011: out_readb = timer.q; 
+      b1100: out_readb = check_round.q; 
+      b1101: out_readb = check_timer.q;
+      b1110: out_readb = temp_one.q;
+      b1111: out_readb = temp_two.q;
+      default: out_readb = 0;
+    }//end case read rb
+    
+    //assign outputs to be used by other modules
+    out_mikeled = out_mike.q; //connected to aselmux
+    out_exmikeled = out_exmike.q; //connected to bselmux
+    out_p1score = p1_score.q; //connected to the seven seg display
+    out_p2score = p2_score.q; //connected to the seven seg display
+    winp1 = p1_win.q[0]; //connected to 7 seg
+    winp2 = p2_win.q[0]; //connected to 7 seg
+    mikeout = out_mike.q; //connected to the GREEN LEDs
+    exmikeout = out_exmike.q; //connected to the RED LEDs
+    p1press_seq = p1_buttonpress.q; //p1 button press sequence connected to fsm in control unit for direct read
+    p2press_seq = p2_buttonpress.q; //p2 button press sequence connected to fsm in control unit for direct read
+    
+    timer_debug = timer.q;
+  }
+}

@@ -1,0 +1,18 @@
+module compare (
+    input z,
+    input v, 
+    input n,
+    input alufn_signal[6],
+    output out[16]
+  ) {
+
+  always {
+    out = 16b0;
+    case(alufn_signal){
+      default: out[0] = 0;
+      b110011: out[0] = z; //alufn[2:1] = 0,1, LSB=z, a==b
+      b110101: out[0] = n^v; //alufn[2:1] = 1,0, LSB=nXORv, a<b
+      b110111: out[0] = z|(n^v); //alufn[2:1] = 1,1, LSB=zOR(nXORv), a<=b
+    }//case end
+  }
+}

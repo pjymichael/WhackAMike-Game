@@ -1,0 +1,85 @@
+//normal output green leds 
+pin normike[0] C43;
+pin normike[1] C46;
+pin normike[2] C49;
+pin normike[3] C42;
+pin normike[4] C45;
+
+//exploding output red leds
+pin dynamike[0] C48;
+pin dynamike[1] C8;
+pin dynamike[2] C5;
+pin dynamike[3] C2;
+pin dynamike[4] C9;
+
+//input pins
+//player 1 buttons
+pin p1[0] B27 pulldown;
+pin p1[1] B30 pulldown;
+pin p1[2] B33 pulldown;
+pin p1[3] B28 pulldown;
+pin p1[4] B31 pulldown;
+
+//player 2 buttons
+pin p2[0] B24 pulldown;
+pin p2[1] B21 pulldown;
+pin p2[2] B18 pulldown;
+pin p2[3] B23 pulldown;
+pin p2[4] B20 pulldown;
+
+
+//output 7 segment p1
+pin io_selp1[0] A8;//selector cathode pin for digit 2, pin 7
+pin io_selp1[1] A9;//cathode pin for digit 1
+
+pin io_segp1[0] A5; //a
+pin io_segp1[1] A6; //b
+pin io_segp1[2] A48; //c
+pin io_segp1[3] A40; //dA46
+pin io_segp1[4] A45; //e
+pin io_segp1[5] A3; //f
+pin io_segp1[6] A11; //g, A2
+
+//p2
+pin io_selp2[0] A42;//selector cathode pin for digit 2, pin 7
+pin io_selp2[1] A39;//cathode pin for digit 1
+
+pin io_segp2[0] A33; //a
+pin io_segp2[1] A31; //b
+pin io_segp2[2] A34; //c
+pin io_segp2[3] A37; //d
+pin io_segp2[4] A18; //e
+pin io_segp2[5] A15; //f
+pin io_segp2[6] A17; //g
+
+
+//win segment
+pin io_selwin[0] B43;//selector cathode pin for digit 2
+pin io_selwin[1] B42;//cathode pin for digit 1
+
+pin io_segwin[0] B36; //a
+pin io_segwin[1] B39; //b
+pin io_segwin[2] B37; //c
+pin io_segwin[3] B40; //d
+pin io_segwin[4] B15; //e
+pin io_segwin[5] B12; //f
+pin io_segwin[6] B14; //g
+
+pin clk CLOCK;
+clock clk 100MHz;
+
+//pin rst_n RESET;
+pin rst_n B48 pulldown;
+
+pin led[0] LED0;
+pin led[1] LED1;
+pin led[2] LED2;
+pin led[3] LED3;
+pin led[4] LED4;
+pin led[5] LED5;
+pin led[6] LED6;
+pin led[7] LED7;
+
+// flip the Tx/Rx lines
+pin usb_rx USB_TX;
+pin usb_tx USB_RX;

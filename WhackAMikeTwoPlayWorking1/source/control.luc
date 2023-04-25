@@ -1,0 +1,762 @@
+//This is where the FSM will be at.
+module control (
+    input clk,  // clock
+    input rst,  // reset
+    input ra_datain[16],
+    input rb_datain[16],
+    input p1buttonpress[8],
+    input decrease_timer,
+    input p1_button[5],
+    input p2_button[5],
+    input p2buttonpress[8],
+    
+    output alufn[6],
+    output asel[3],
+    output bsel[4],
+    output wdsel[1],
+    output we[1],
+    output rc[4], //write address to regfile
+    output ra[4], //read addr ra to regfile
+    output rb[4] //read affr rb to regfile
+    //debug
+
+  ) {
+  
+  .clk(clk){
+    .rst(rst){
+    fsm game_fsm = {
+        START,
+        RESET_P1WIN,
+        RESET_P2WIN,
+        RESET_P1SCORE,
+        RESET_P2SCORE,
+        SET_ROUND,
+        CHECK_ROUND,
+        NORMAL_MODE,
+        TURBO_MODE,
+        GEN_MIKE,
+        GEN_DYNAMIKE,
+        OUT_MIKE,
+        OUT_DYNAMIKE,
+        WAIT_PLAYERINPUT,
+        CHECK_TIMER,
+        INCREMENT_ROUND,
+        CHECKWHACK_P1,
+        NORMMIKE_WHACKED_P1,
+        DYNAMIKE_WHACKED_P1,
+        INCREASE_P1SCORE,
+        DECREASE_P1SCORE,
+        CHECK_P1SCORE,
+        CHECK_ZEROP1SCORE,
+        P1_WIN,
+        GAMEOVER,
+        BRANCH_CHECK_ZEROP1SCORE,
+        BRANCH_CHECK_ROUND,
+        BRANCH_CHECK_TIMER,
+        BRANCH_CHECK_P1SCORE,
+        DECREASE_TIMER,
+        CHECKLESS_THANTHREE_P1,
+        BRANCH_CHECKLESS_THANTHREE_P1,
+        DECREASE_P1SCORE_BYTHREE,
+        DECREASE_P1SCORE_BYTWO,
+        CHECKSCORE_EQUALTWO_P1,
+        BRANCH_CHECKSCORE_EQUALTWO_P1,
+        CHECKSCORE_EQUALONE_P1,
+        BRANCH_CHECKSCORE_EQUALONE_P1,
+        STOREP1_WIN,
+        CHECKWHACK_P2,
+        NORMMIKE_WHACKED_P2,
+        DYNAMIKE_WHACKED_P2,
+        CHECK_ZEROP2SCORE,
+        INCREASE_P2SCORE,
+        CHECK_P2SCORE,
+        BRANCH_CHECK_P2SCORE,
+        P2_WIN,
+        CHECKLESS_THANTHREE_P2,
+        BRANCH_CHECKLESS_THANTHREE_P2,
+        CHECKSCORE_EQUALTWO_P2,
+        DECREASE_P2SCORE_BYTHREE,
+        BRANCH_CHECKSCORE_EQUALTWO_P2,
+        DECREASE_P2SCORE_BYTWO,
+        CHECKSCORE_EQUALONE_P2,
+        BRANCH_CHECKSCORE_EQUALONE_P2,
+        DECREASE_P2SCORE,
+        BRANCH_CHECK_ZEROP2SCORE,
+        STOREP2_WIN
+      };//end fsm states
+    }
+  }  
+  always {
+    //standard setting for output signals
+    alufn = b000000;
+    asel = b000;
+    bsel = b000;
+    wdsel = b0;
+    we = b0;
+    rc = h0000;
+    ra = h0000;
+    rb = h0000;
+    
+    case(game_fsm.q){  
+      game_fsm.START:
+        game_fsm.d = game_fsm.RESET_P1WIN;
+          
+      //reset p1 win register
+      game_fsm.RESET_P1WIN:
+        we = b1;
+        rc = h2; //write to P1 win register
+        wdsel = b1; //constant 0
+        game_fsm.d = game_fsm.RESET_P2WIN;
+        
+        
+      //reset p2 win register
+      game_fsm.RESET_P2WIN:
+        we = b1;
+        rc = h3; //write to P2 win register
+        wdsel = b1; //constant 0
+        game_fsm.d = game_fsm.RESET_P1SCORE;
+        
+      //reset P1 score
+      game_fsm.RESET_P1SCORE:
+        we = b1;
+        rc = h0; //write to P1 score register
+        wdsel = b1; //constant 0
+        game_fsm.d = game_fsm.RESET_P2SCORE;
+        
+      //reset P2 score 
+      game_fsm.RESET_P2SCORE:
+        we = b1;
+        rc = h1; //write to P2 score register
+        wdsel = b1; //constant 0
+        game_fsm.d = game_fsm.SET_ROUND;
+        
+      //set round counter to 0 
+      game_fsm.SET_ROUND:
+        we = b1;
+        rc = hA; //write to round counter register 
+        wdsel = b1; //constant 0
+        game_fsm.d = game_fsm.CHECK_ROUND;
+                
+      //checks if round count is lesser than or equal to 5
+      game_fsm.CHECK_ROUND:
+        alufn = b110111; //CMPLE
+        asel = b000; //read from ra port 
+        bsel = b0011; //constant 5
+        we = b1;
+        ra = hA; //read from round counter register 
+        rc = hC; //write into check round register
+        wdsel = b0; //alu output
+        game_fsm.d = game_fsm.BRANCH_CHECK_ROUND;
+      
+      //branch check round count    
+      game_fsm.BRANCH_CHECK_ROUND:
+        rb = hC; //direct read in from check round regsiter (rb port) 
+        if(rb_datain[0]){ //direct read in from Rb address port of regfile
+          game_fsm.d = game_fsm.NORMAL_MODE;
+        }//end if check round counter is lesser than equal to 5
+        else{
+          game_fsm.d = game_fsm.TURBO_MODE;
+        }//end else
+        
+      //set timer to be 2secs per round
+      game_fsm.NORMAL_MODE:
+        alufn = b000000; //ADD 
+        bsel = b0010; //constant 2
+        we = b1;
+        ra = hB; //read from timer register
+        rc = hB; //write timer register
+        wdsel = b0; //alu output
+        game_fsm.d = game_fsm.GEN_MIKE;
+
+      //set timer to be 1 sec per round 
+      game_fsm.TURBO_MODE:
+        alufn = b000000; //'ADD' 
+        bsel = b0110; //constant 1 
+        ra = hB; //read from timer register
+        we = b1;
+        rc = hB; //write to timer register
+        wdsel = b0; //alu output
+        game_fsm.d = game_fsm.GEN_MIKE;
+        
+      //generate the sequence of mikes, using randomiser
+      game_fsm.GEN_MIKE:
+        alufn = b011010;//'A'
+        asel = b001; //randomiser output
+        we = b1;
+        rc = h4; //write to position of mike reg
+        wdsel = b0; //alu output
+        game_fsm.d = game_fsm.GEN_DYNAMIKE;
+        
+      //generate the seqeunce of dynamikes, using randomiser
+      game_fsm.GEN_DYNAMIKE:
+        alufn = b011010;//'A'
+        asel = b101; //randomiser for dynamike output
+        we = b1; 
+        rc = h5; //pos of dynamike register
+        wdsel = b0; //alu output
+        game_fsm.d = game_fsm.OUT_MIKE;
+      
+      //output the mike sequence on the GREEN leds
+      game_fsm.OUT_MIKE:
+        alufn = b011001;//'CMPNORM' 
+        asel = b000; //read from ra port
+        bsel = b0000; //read from rb port
+        we = b1;
+        ra = h4; //read from mike pos reg
+        rb = h5; //read from dynamike pos reg
+        rc = h8; //write to mike led output reg
+        wdsel = b0; //alu out
+        game_fsm.d = game_fsm.OUT_DYNAMIKE;
+        
+      //output the dynamike sequence on the RED leds
+      game_fsm.OUT_DYNAMIKE:
+        alufn = b011100;//'CMPEX' 
+        asel = b000; //read from ra port
+        bsel = b0000; //read from rb port
+        we = b1; 
+        ra = h4; //read from mike pos reg
+        rb = h5; //read from dynamike pos reg
+        rc = h9; //write to dynamike led out reg
+        wdsel = b0; //alu out
+        game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+       
+      //waiting for player input, or waiting if the timer decreases 
+      game_fsm.WAIT_PLAYERINPUT:
+        if(decrease_timer){ //if timer decreases
+          game_fsm.d = game_fsm.CHECK_TIMER;
+        }//end if decrease timer is true
+          
+        else if(p1_button[0] || p1_button[1] || p1_button[2] || p1_button[3] || p1_button[4]){ //if p1 button is pressed
+          if (p1_button[0]){
+            alufn = b011010; //A
+            asel = b010;
+            we = b1;
+            wdsel = b0;
+            rc = h6; //write into p1 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P1;
+          }//end if p1_button[0] is pressed
+          else if (p1_button[1]){
+            alufn = b011010; //A
+            asel = b110;
+            we = b1;
+            wdsel = b0;
+            rc = h6; //write into p1 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P1;
+          }//end if p1_button[1] is pressed
+          else if (p1_button[2]){
+            alufn = b011010; //A
+            asel = b111;
+            we = b1;
+            wdsel = b0;
+            rc = h6; //write into p1 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P1;
+          }//end if p1_button[2] is pressed
+          else if (p1_button[3]){
+            alufn = b011011; //B
+            bsel = b0101;
+            we = b1;
+            wdsel = b0;
+            rc = h6; //write into p1 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P1;
+          }//end if p1_button[3] is pressed
+          else if (p1_button[4]){
+            alufn = b011011; //B
+            bsel = b0111;
+            we = b1;
+            wdsel = b0;
+            rc = h6; //write into p1 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P1;
+          }//end if p1_button[4] is pressed            
+        }//end else if p1 whacks first
+        
+        //if P2 whacks first 
+        else if(p2_button[0] || p2_button[1] || p2_button[2] || p2_button[3] || p2_button[4]){ //if p2 button is pressed
+          if (p2_button[0]){
+            alufn = b011010; //A
+            asel = b010;
+            we = b1;
+            wdsel = b0;
+            rc = h7; //write into p2 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P2;
+          }//end if p2 button 1 is pressed
+          else if (p2_button[1]){
+            alufn = b011010; //A
+            asel = b110;
+            we = b1;
+            wdsel = b0;
+            rc = h7; //write into p2 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P2;
+          }//end if p2_button[1] is pressed
+          else if (p2_button[2]){
+            alufn = b011010; //A
+            asel = b111;
+            we = b1;
+            wdsel = b0;
+            rc = h7; //write into p2 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P2;
+          }//end if p2_button[2] is pressed
+          else if (p2_button[3]){
+            alufn = b011011; //B
+            bsel = b0101;
+            we = b1;
+            wdsel = b0;
+            rc = h7; //write into p2 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P2;
+          }//end if p2_button[3] is pressed
+          else if (p2_button[4]){
+            alufn = b011011; //B
+            bsel = b0111;
+            we = b1;
+            wdsel = b0;
+            rc = h7; //write into p2 button press register
+            game_fsm.d = game_fsm.CHECKWHACK_P2;
+          }//end if p2_button[4] is pressed            
+        }//end else if p1 whacks first
+                      
+        else{
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }//end else stay in waiting for any player input
+      
+      //checks if timer has reached 0
+      game_fsm.CHECK_TIMER:
+        alufn = b110011; //CMPEQ
+        asel = b000; //read from ra port
+        bsel = b0001; //constant 0
+        we = b1;
+        ra = hB; //read from timer reg
+        rc = hD; //write into check timer temporary register
+        wdsel = b0; //alu out
+        game_fsm.d = game_fsm.BRANCH_CHECK_TIMER;
+      
+      //branching happens in the next clk cycle
+      game_fsm.BRANCH_CHECK_TIMER:
+        rb = hD; //direct read in from check timer reg (rb port)
+        if(rb_datain[0] == b1){
+          game_fsm.d = game_fsm.INCREMENT_ROUND;
+        }//end if timer has reached 0, go to next round
+        else{ game_fsm.d = game_fsm.DECREASE_TIMER;}
+      
+      //decrease game timer
+      game_fsm.DECREASE_TIMER:
+        alufn = b000001; //SUB
+        bsel = b0110; //constant 1
+        asel = b000; //read from ra port
+        ra = hb; //read from timer register
+        rc = hb; //write back into timer register
+        wdsel = b0; //alu out
+        we = b1;
+        game_fsm.d = game_fsm.WAIT_PLAYERINPUT; 
+        
+      //increases the round by 1 
+      game_fsm.INCREMENT_ROUND:
+        alufn = b000000; //ADD
+        asel = b000; //read from ra port
+        bsel = b0110; //constant 1
+        we = b1;
+        ra = hA; //read from round counter register
+        rc = hA; //write into round counter register
+        wdsel = b0; //alu output
+        game_fsm.d = game_fsm.CHECK_ROUND;//ZEROGEN_NORMIKE;
+      
+      //player 1 states        
+      //checks which mike did p1 whack 
+      game_fsm.CHECKWHACK_P1:
+        ra = h8; //direct read in normal mike output
+        rb = h9; //direct read in dynamike output
+        if(p1buttonpress[p1buttonpress[7:5]] == ra_datain[p1buttonpress[7:5]]){
+          game_fsm.d = game_fsm.NORMMIKE_WHACKED_P1;
+        }//end if normal mike is whacked
+        else if (p1buttonpress[p1buttonpress[7:5]] == rb_datain[p1buttonpress[7:5]]){
+          game_fsm.d = game_fsm.DYNAMIKE_WHACKED_P1;
+        }//end else if dynamike is whacked
+        else{
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }// if player accidentally whacks a hole with no mike or dynamike
+      
+      //if normike whacked by p1
+      game_fsm.NORMMIKE_WHACKED_P1:
+        alufn = b010110; //XOR
+        asel = b100; //norm mike led output
+        bsel = b0000; //read from rb port
+        we = b1;
+        rb = h6; //read from p1 button press register
+        rc = h8; //write into normal mike output register
+        wdsel = b0;
+        game_fsm.d = game_fsm.INCREASE_P1SCORE; 
+        
+      //increase score of p1 by 1 since normal mike it whacked
+      game_fsm.INCREASE_P1SCORE:
+        alufn = b000000; //ADD
+        asel = b000; //ra data
+        bsel = b0110; //constant 1
+        we = 1;
+        ra = h0; //read from p1 score register
+        rc = h0; //write into p1 score register
+        wdsel = b0;
+        game_fsm.d = game_fsm.CHECK_P1SCORE;
+      
+      //check if p1 score has reached 15  
+      game_fsm.CHECK_P1SCORE:
+        alufn = b110011; //CMPEQ
+        asel = b011; //constant 15
+        bsel = b0000; //rb data
+        we = b1;          
+        rb = h0; //read from p1 score register
+        rc = h2; //write into p1 win register
+        wdsel = b0;
+        game_fsm.d = game_fsm.BRANCH_CHECK_P1SCORE;
+        
+      game_fsm.BRANCH_CHECK_P1SCORE:
+        ra = h2; //direct read in from ra data port
+        if(ra_datain[0]){
+          game_fsm.d = game_fsm.P1_WIN;
+        }//end if p1 wins
+        else{
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }//end else go to wait player input state to wait for any other button presses
+        
+      //if dynamike whacked by p1
+      game_fsm.DYNAMIKE_WHACKED_P1:
+        alufn = b010110; //XOR
+        asel = b000; //read from ra port
+        bsel = b0100; //dynamike output
+        we = b1;
+        ra = h6; //read from p1buttonpress register
+        rc = h9; // write into dynamike output
+        wdsel = b0;
+        game_fsm.d = game_fsm.CHECKLESS_THANTHREE_P1;
+      
+      game_fsm.CHECKLESS_THANTHREE_P1:
+        alufn = b110101; //CMPLT
+        asel = b000; //read from ra port
+        bsel = b1000; //constant 0
+        we = 1;
+        ra = h0; //read from p1 score register
+        rc = hE; //write into temp register
+        wdsel = b0;
+        game_fsm.d = game_fsm.BRANCH_CHECKLESS_THANTHREE_P1;
+      
+      game_fsm.BRANCH_CHECKLESS_THANTHREE_P1:
+        rb = hE; //direct read in from rb data in
+        if (rb_datain[0]){
+          game_fsm.d = game_fsm.CHECKSCORE_EQUALTWO_P1;
+        }//end if p1 score is less than 3
+        else{
+          game_fsm.d = game_fsm.DECREASE_P1SCORE_BYTHREE;
+        }//end else p1 score is not less than 3
+      
+      //check if equal to 2
+      game_fsm.CHECKSCORE_EQUALTWO_P1:
+        alufn = b110011; //CMPEQ
+        asel = b000; //read from ra port
+        bsel = b0010; //constant 2
+        we = b1;
+        wdsel = b0;
+        ra = h0; //read from p1 score reg
+        rc = hE; //write into temp reg
+        game_fsm.d = game_fsm.BRANCH_CHECKSCORE_EQUALTWO_P1;
+      
+      game_fsm.BRANCH_CHECKSCORE_EQUALTWO_P1:
+        ra = hE; //direct read from tempreg
+        if(ra_datain[0]){
+          game_fsm.d = game_fsm.DECREASE_P1SCORE_BYTWO;
+        }//end if p1 score is equal to 2
+        else{
+          game_fsm.d = game_fsm.CHECKSCORE_EQUALONE_P1;
+        }//end else
+      
+      //check if score is 1
+      game_fsm.CHECKSCORE_EQUALONE_P1:
+        alufn = b110011; //CMPEQ
+        asel = b000; //read from ra port
+        bsel = b0110; //constant 1
+        we = b1;
+        wdsel = b0;
+        ra = h0; //read from p1 score reg
+        rc = hE; //write into temp reg
+        game_fsm.d = game_fsm.BRANCH_CHECKSCORE_EQUALONE_P1;
+      
+      game_fsm.BRANCH_CHECKSCORE_EQUALONE_P1:
+        ra = hE; //direct read from tempreg
+        if(ra_datain[0]){
+          game_fsm.d = game_fsm.DECREASE_P1SCORE;
+        }//end if p1 score is equal to 1
+        else{
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }//end else
+      
+      game_fsm.DECREASE_P1SCORE_BYTWO:
+        alufn = b000001; //SUB
+        asel = b000; //read from ra port
+        bsel = b0010; //constant 2
+        we = b1;
+        ra = h0; //read p1 score register
+        rc = h0; //write into p1 score register
+        wdsel = b0; //alu output
+        game_fsm.d = game_fsm.WAIT_PLAYERINPUT; 
+      
+      game_fsm.DECREASE_P1SCORE_BYTHREE:
+        alufn = b000001; //SUB
+        asel = b000; //read from ra port
+        bsel = b1000; //constant 1
+        we = b1;
+        ra = h0; //read p1 score register
+        rc = h0; //write into p1 score register
+        wdsel = b0; //alu out
+        game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+      
+      //checks if p1 score is at 0
+      game_fsm.CHECK_ZEROP1SCORE:
+        alufn = b110011; //CMPEQ
+        asel = b000; //read from ra port
+        bsel = b0001; //constant 0
+        we = 1;
+        ra = h0; //read from p1 score register
+        rc = hF; //write into temp register
+        wdsel = b0;
+        game_fsm.d = game_fsm.BRANCH_CHECK_ZEROP1SCORE;
+        
+      //branch 
+      game_fsm.BRANCH_CHECK_ZEROP1SCORE:
+        rb = hF; //direct read in from rb data in
+        if (rb_datain[0]){
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }//end if p1 score is 0
+        else{
+          game_fsm.d = game_fsm.DECREASE_P1SCORE;
+        }//end else p1 score is not 0
+      
+      //decrease p1 score by 1 if dynamkie is whacked  
+      game_fsm.DECREASE_P1SCORE:
+        alufn = b000001; //SUB
+        asel = b000; //read from ra port
+        bsel = b0110; //constant 1
+        we = b1;
+        ra = h0; //read p1 score register
+        rc = h0; //write into p1 score register
+        wdsel = b0; //alu out
+        game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+
+      //if p1 score is 15, output in win 7segment display that P1 wins
+      game_fsm.P1_WIN:
+        alufn = b011010; //A
+        asel = b011; //constant 15
+        we = b1;          
+        rc = h0; //write into p1 score register
+        wdsel = b0;
+        game_fsm.d = game_fsm.STOREP1_WIN;
+        
+      game_fsm.STOREP1_WIN:
+        alufn = b011011; //B
+        bsel = b0110; //constant 1
+        we = b1;          
+        rc = h2; //write into p1 win register
+        wdsel = b0;
+        game_fsm.d = game_fsm.GAMEOVER;
+        
+      //PLAYER TWO STATES
+      game_fsm.CHECKWHACK_P2:
+        ra = h8; //direct read in normal mike output
+        rb = h9; //direct read in dynamike output
+        if(p2buttonpress[p2buttonpress[7:5]] == ra_datain[p2buttonpress[7:5]]){
+          game_fsm.d = game_fsm.NORMMIKE_WHACKED_P2;
+        }//end if normal mike is whacked
+        else if (p2buttonpress[p2buttonpress[7:5]] == rb_datain[p2buttonpress[7:5]]){
+          game_fsm.d = game_fsm.DYNAMIKE_WHACKED_P2;
+        }//end else if dynamike is whacked
+        else{
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }// if player accidentally whacks a hole with no mike or dynamike
+      
+      //if normike whacked by p2
+      game_fsm.NORMMIKE_WHACKED_P2:
+        alufn = b010110; //XOR
+        asel = b100; //norm mike led output
+        bsel = b0000; //read from rb port
+        we = b1;
+        rb = h7; //read from p1 button press register
+        rc = h8; //write into normal mike output register
+        wdsel = b0;
+        game_fsm.d = game_fsm.INCREASE_P2SCORE; 
+        
+      //increase score of p1 by 1 since normal mike it whacked
+      game_fsm.INCREASE_P2SCORE:
+        alufn = b000000; //ADD
+        asel = b000; //ra data
+        bsel = b0110; //constant 1
+        we = b1;
+        ra = h1; //read from p1 score register
+        rc = h1; //write into p1 score register
+        wdsel = b0;
+        game_fsm.d = game_fsm.CHECK_P2SCORE;
+      
+      //check if p1 score has reached 15  
+      game_fsm.CHECK_P2SCORE:
+        alufn = b110011; //CMPEQ
+        asel = b011; //constant 15
+        bsel = b0000; //rb data
+        we = b1;          
+        rb = h1; //read from p2 score register
+        rc = h3; //write into p2 win register
+        wdsel = b0;
+        game_fsm.d = game_fsm.BRANCH_CHECK_P2SCORE;
+        
+      game_fsm.BRANCH_CHECK_P2SCORE:
+        ra = h3; //direct read in from ra data port
+        if(ra_datain[0]){
+          game_fsm.d = game_fsm.P2_WIN;
+        }//end if p2 wins
+        else{
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }//end else go to wait player input state to wait for any other button presses
+        
+      //if dynamike whacked by p1
+      game_fsm.DYNAMIKE_WHACKED_P2:
+        alufn = b010110; //XOR
+        asel = b000; //read from ra port
+        bsel = b0100; //dynamike output
+        we = b1;
+        ra = h7; //read from p2buttonpress register
+        rc = h9; // write into dynamike output
+        wdsel = b0;
+        game_fsm.d = game_fsm.CHECKLESS_THANTHREE_P2;
+      
+      game_fsm.CHECKLESS_THANTHREE_P2:
+        alufn = b110101; //CMPLT
+        asel = b000; //read from ra port
+        bsel = b1000; //constant 0
+        we = b1;
+        ra = h1; //read from p2 score register
+        rc = hE; //write into temp register
+        wdsel = b0;
+        game_fsm.d = game_fsm.BRANCH_CHECKLESS_THANTHREE_P2;
+      
+      game_fsm.BRANCH_CHECKLESS_THANTHREE_P2:
+        rb = hE; //direct read in from rb data in
+        if (rb_datain[0]){
+          game_fsm.d = game_fsm.CHECKSCORE_EQUALTWO_P2;
+        }//end if p1 score is less than 3
+        else{
+          game_fsm.d = game_fsm.DECREASE_P2SCORE_BYTHREE;
+        }//end else p1 score is not less than 3
+      
+      //check if equal to 2
+      game_fsm.CHECKSCORE_EQUALTWO_P2:
+        alufn = b110011; //CMPEQ
+        asel = b000; //read from ra port
+        bsel = b0010; //constant 2
+        we = b1;
+        wdsel = b0;
+        ra = h1; //read from p2 score reg
+        rc = hE; //write into temp reg
+        game_fsm.d = game_fsm.BRANCH_CHECKSCORE_EQUALTWO_P2;
+      
+      game_fsm.BRANCH_CHECKSCORE_EQUALTWO_P2:
+        ra = hE; //direct read from tempreg
+        if(ra_datain[0]){
+          game_fsm.d = game_fsm.DECREASE_P2SCORE_BYTWO;
+        }//end if p1 score is equal to 2
+        else{
+          game_fsm.d = game_fsm.CHECKSCORE_EQUALONE_P2;
+        }//end else
+      
+      //check if score is 1
+      game_fsm.CHECKSCORE_EQUALONE_P2:
+        alufn = b110011; //CMPEQ
+        asel = b000; //read from ra port
+        bsel = b0110; //constant 1
+        we = b1;
+        wdsel = b0;
+        ra = h1; //read from p2 score reg
+        rc = hE; //write into temp reg
+        game_fsm.d = game_fsm.BRANCH_CHECKSCORE_EQUALONE_P2;
+      
+      game_fsm.BRANCH_CHECKSCORE_EQUALONE_P2:
+        ra = hE; //direct read from tempreg
+        if(ra_datain[0]){
+          game_fsm.d = game_fsm.DECREASE_P2SCORE;
+        }//end if p1 score is equal to 1
+        else{
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }//end else
+      
+      game_fsm.DECREASE_P2SCORE_BYTWO:
+        alufn = b000001; //SUB
+        asel = b000; //read from ra port
+        bsel = b0010; //constant 2
+        we = b1;
+        ra = h1; //read p2 score register
+        rc = h1; //write into p2 score register
+        wdsel = b0; //alu output
+        game_fsm.d = game_fsm.WAIT_PLAYERINPUT; 
+      
+      game_fsm.DECREASE_P2SCORE_BYTHREE:
+        alufn = b000001; //SUB
+        asel = b000; //read from ra port
+        bsel = b1000; //constant 1
+        we = b1;
+        ra = h1; //read p2 score register
+        rc = h1; //write into p2 score register
+        wdsel = b0; //alu out
+        game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+      
+      //checks if p1 score is at 0
+      game_fsm.CHECK_ZEROP2SCORE:
+        alufn = b110011; //CMPEQ
+        asel = b000; //read from ra port
+        bsel = b0001; //constant 0
+        we = 1;
+        ra = h1; //read from p2 score register
+        rc = hF; //write into temp register
+        wdsel = b0;
+        game_fsm.d = game_fsm.BRANCH_CHECK_ZEROP2SCORE;
+        
+      //branch 
+      game_fsm.BRANCH_CHECK_ZEROP2SCORE:
+        rb = hF; //direct read in from rb data in
+        if (rb_datain[0]){
+          game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+        }//end if p2 score is 0
+        else{
+          game_fsm.d = game_fsm.DECREASE_P2SCORE;
+        }//end else p2 score is not 0
+      
+      //decrease p1 score by 1 if dynamkie is whacked  
+      game_fsm.DECREASE_P2SCORE:
+        alufn = b000001; //SUB
+        asel = b000; //read from ra port
+        bsel = b0110; //constant 1
+        we = b1;
+        ra = h1; //read p2 score register
+        rc = h1; //write into p2 score register
+        wdsel = b0; //alu out
+        game_fsm.d = game_fsm.WAIT_PLAYERINPUT;
+
+      //if p1 score is 15, output in win 7segment display that P1 wins
+      game_fsm.P2_WIN:
+        alufn = b011010; //A
+        asel = b011; //constant 15
+        we = b1;          
+        rc = h1; //write into p2 score register
+        wdsel = b0;
+        game_fsm.d = game_fsm.STOREP2_WIN;
+        
+      game_fsm.STOREP2_WIN:
+        alufn = b011011; //B
+        bsel = b0110; //constant 1
+        we = b1;          
+        rc = h3; //write into p2 win register
+        wdsel = b0;
+        game_fsm.d = game_fsm.GAMEOVER;
+           
+      //END GAMEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEEE
+      //end game, just wait in this state until reset/start is pressed
+      game_fsm.GAMEOVER:
+        if(rst){
+          game_fsm.d = game_fsm.START;
+        }//end if reset is pressed
+        else{ game_fsm.d = game_fsm.GAMEOVER;} //end else loop in gameover state 
+        
+      }//end fsm case 
+  }//end always
+}

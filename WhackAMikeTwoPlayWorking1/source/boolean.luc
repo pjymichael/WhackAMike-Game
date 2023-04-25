@@ -1,0 +1,20 @@
+module boolean (
+    input alufn_signal[6],
+    input a[16],
+    input b[16],
+    output out[16]
+  ) {
+
+  always {
+    case(alufn_signal[3:0]){
+      b1000: out = a&b;//bitwise and
+      b1110: out = a|b;//bitwise or
+      b0110: out = a^b;//bitwise xor
+      b1010: out = a;//output the value of input a
+      b1011: out = b;//output the value of input b
+      b1001: out = (a&b)+(a&(~b));//CMPNORM, to get output for normal mikes
+      b1100: out = (~a)&b; //CMPEXPLODE, to get output for exploding mikes
+      default: out = 16b0;
+    }//case end
+  }
+}

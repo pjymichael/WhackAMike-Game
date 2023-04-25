@@ -1,0 +1,176 @@
+module beta (
+    input clk,  // clock
+    input rst,  // reset
+    input p1_button[5],
+    input p2_button[5],
+    output out_mike[16],
+    output out_dynamike[16],
+    output segments_p1[8],
+    output selectors_p1[2],
+    output segments_p2[8],
+    output selectors_p2[2],
+    output segments_win[8],
+    output selectors_win[2]
+  ) {
+  
+  //temp variables
+  sig inputAlu_a[16];
+  sig inputAlu_b[16];
+  sig p1score[4]; //using only 4 bits since 15 is the max number the score can go to
+  sig p2score[4];
+  sig p1win[1];
+  sig p2win[1];
+  
+  alu aluUnit; //declare alu module (NO CLK)
+  
+  .clk(clk){
+    edge_detector round_timer_detector(#RISE(1), #FALL(0));
+    .rst(rst){
+      control controlUnit; //declare control module
+      regfile regUnit; //declare regfile module
+      counter slow_timer(#SIZE(1),#DIV(25)); //slow the timer for the game
+      random randomiser;
+      random_dynamike randomiser_dynamike;
+      multi_seven_seg_p1 seg;
+      multi_seven_seg_p2 segp2;
+      multi_seven_seg_win segwin;
+    } 
+  }
+  always {
+    //default start value for 7 segments 
+    seg.values = {4h0,4h0};
+    segp2.values = {4h0,4h0};
+    segwin.values = {4h0,4h0};
+    segments_p1 = 8hff;         
+    selectors_p1 = 4hf; 
+    segments_p2 = 8hff;         
+    selectors_p2 = 4hf;
+    segments_win = 8hff;
+    selectors_win = 4hf;        
+    
+    //standard outputs
+    out_dynamike = regUnit.exmikeout;
+    out_mike = regUnit.mikeout;
+    
+    //edge detectors 
+    round_timer_detector.in = slow_timer.value; //round timer detector depending on the mode
+    
+    //pass timer signals to control unit
+    controlUnit.decrease_timer = round_timer_detector.out; 
+    
+    //pass button press signal of each player to control unit
+    controlUnit.p1_button = p1_button;
+    controlUnit.p2_button = p2_button;
+    
+    //setup regfile unit
+    regUnit.we = controlUnit.we;
+    regUnit.write_addrc = controlUnit.rc;
+    regUnit.read_addra = controlUnit.ra;
+    regUnit.read_addrb = controlUnit.rb;
+    
+    //Connections between regfile and control module
+    controlUnit.ra_datain = regUnit.out_reada; //read directly from ra data out in regfile
+    controlUnit.rb_datain = regUnit.out_readb; //read directly from rb data out in regfile
+    
+    controlUnit.p1buttonpress = regUnit.p1press_seq[7:0]; //connected directly to output of button press p1  
+    controlUnit.p2buttonpress = regUnit.p2press_seq[7:0]; //connected directly to output of button press p2 
+    
+    //connections between registers of p1 score to 7 segment outputs
+    p1score = regUnit.out_p1score[3:0];
+    p2score = regUnit.out_p2score[3:0];
+    //read who wins
+    p1win = regUnit.winp1;
+    p2win = regUnit.winp2;
+    
+    //check p1 score
+    if(p1score<=d9){
+      seg.values = {4h0,p1score};
+    }//end if p1 score is less than 9
+    else{
+      case(p1score){
+        d10: seg.values = {4h1,4h0};
+        d11: seg.values = {4h1,4h1};
+        d12: seg.values = {4h1,4h2};
+        d13: seg.values = {4h1,4h3};
+        d14: seg.values = {4h1,4h4};
+        d15: seg.values = {4h1,4h5};
+      }//end case p1score
+    }//end else p1 score is more than 9  
+     
+    //check p2 score
+    if(p2score<=d9){
+      segp2.values = {4h0,p2score};
+    }//end if p2 score is less than 9
+    else{
+      case(p2score){
+        d10: segp2.values = {4h1,4h0};
+        d11: segp2.values = {4h1,4h1};
+        d12: segp2.values = {4h1,4h2};
+        d13: segp2.values = {4h1,4h3};
+        d14: segp2.values = {4h1,4h4};
+        d15: segp2.values = {4h1,4h5};
+      }//end case p2score
+    }//end else p2 score is more than 9
+    
+    //check who wins
+    if(p1win==b1 && p2win==b0){
+      segwin.values = {4h3, 4h1};
+    }//end if p1 wins
+    else if(p1win==b0 && p2win==b1){
+      segwin.values = {4h3, 4h2};
+    }//end else p2 wins
+    else{
+      segwin.values = {4h3, 4h0};
+    }//end else no one has won yet, output P[nothing]
+    
+    //player 1 7 segment
+    segments_p1 = seg.seg;//will be read by au top to output to 7 segments
+    selectors_p1 = ~seg.sel;
+    //player 2 7 segment
+    segments_p2 = segp2.seg;//will be read by au top to output to 7 segments
+    selectors_p2 = ~segp2.sel;
+    //win 7 segment
+    segments_win = segwin.seg;//will be read by au top to output to 7 segments
+    selectors_win = ~segwin.sel;
+    
+    //ASEL BSEL WDSEL MUXES 
+    //asel mux
+    case(controlUnit.asel){
+      b000: inputAlu_a = regUnit.out_reada; //read from ra data port in regfile
+      b001: inputAlu_a = randomiser.out; //random unit
+      b010: inputAlu_a = d1;//encoding for button 1
+      b011: inputAlu_a = h000F; //constant 15 (for round checking)
+      b100: inputAlu_a = regUnit.out_mikeled; //output of mike register value
+      b101: inputAlu_a = randomiser_dynamike.out; //random unit for dynamike
+      b110: inputAlu_a = d34; //encoding for button 2
+      b111: inputAlu_a = d68; //encoding for button 3
+      default: inputAlu_a = 0;
+    }//end asel case
+    
+    //bselmux
+    case(controlUnit.bsel){
+      b0000: inputAlu_b = regUnit.out_readb; //read from rb port in regfile
+      b0001: inputAlu_b = h0000; //constant 0 to check if timer/round is 0
+      b0010: inputAlu_b = h0002; //constant 2 to set timer for normal round
+      b0011: inputAlu_b = b00101; //constant 5 to check when round reaches 5
+      b0100: inputAlu_b = regUnit.out_exmikeled; //position of exploding mike register value
+      b0101: inputAlu_b = d104; //encoding for button 4
+      b0110: inputAlu_b = h0001; //constant 1 to set timer for turbo round
+      b0111: inputAlu_b = d144; ////encoding for button 5
+      b1000: inputAlu_b = h0003; //constant 3
+      default: inputAlu_b = 0;
+    }//end bsel case
+    
+    //ALU connections
+    aluUnit.a = inputAlu_a;
+    aluUnit.b = inputAlu_b;
+    aluUnit.alufn_sig = controlUnit.alufn;
+    
+    //wdselmux, connects to data into regfile unit
+    case(controlUnit.wdsel){
+      b0: regUnit.data = aluUnit.out;
+      b1: regUnit.data = h0000;
+      default: regUnit.data = aluUnit.out;
+    }//end wdsel case
+  }
+}
